@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Ordering System</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .table-selector {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #ecf0f1;
+      border-radius: 5px;
+    }
+
+    .table-selector select,
+    .table-selector input {
+      padding: 8px;
+      margin-right: 10px;
+    }
+
+    .menu-items {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .menu-item {
+      background-color: white;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .menu-item h3 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+
+    .menu-item .price {
+      font-weight: bold;
+      color: #e74c3c;
+      margin: 10px 0;
+    }
+
+    .menu-item .description {
+      color: #7f8c8d;
+      margin-bottom: 15px;
+    }
+
+    .menu-item button {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .menu-item button:hover {
+      background-color: #2ecc71;
+    }
+
+    .order-summary {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-summary h2 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+
+    .order-items {
+      margin-bottom: 20px;
+    }
+
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #ecf0f1;
+    }
+
+    .total {
+      font-weight: bold;
+      font-size: 1.2em;
+      text-align: right;
+    }
+
+    .submit-order {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 10px;
+    }
+
+    .submit-order:hover {
+      background-color: #2980b9;
+    }
+
+    .order-received {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-received h2 {
+      color: #2c3e50;
+    }
+
+    .back-to-menu {
+      background-color: #7f8c8d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 20px;
+    }
+
+    .back-to-menu:hover {
+      background-color: #95a5a6;
+    }
+
+    /* Kitchen View Styles */
+    .kitchen-header {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .orders-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .order-card {
+      background-color: white;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-card h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #ecf0f1;
+      padding-bottom: 10px;
+    }
+
+    .order-time {
+      color: #7f8c8d;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+
+    .order-status {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      margin-left: 10px;
+    }
+
+    .status-new {
+      background-color: #3498db;
+      color: white;
+    }
+
+    .status-preparing {
+      background-color: #f39c12;
+      color: white;
+    }
+
+    .status-ready {
+      background-color: #27ae60;
+      color: white;
+    }
+
+    .order-actions {
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .order-actions button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .mark-preparing {
+      background-color: #f39c12;
+      color: white;
+    }
+
+    .mark-ready {
+      background-color: #27ae60;
+      color: white;
+    }
+
+    .refresh-btn {
+      background-color: #3498db;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 3px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+
+    .no-orders {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .view-switcher {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .view-switcher button {
+      padding: 10px 20px;
+      margin: 0 5px;
+      background-color: #2c3e50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .view-switcher button.active {
+      background-color: #3498db;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="view-switcher">
+    <button id="customer-view-btn" class="active" onclick="switchView('customer')">Customer View</button>
+    <button id="kitchen-view-btn" onclick="switchView('kitchen')">Kitchen View</button>
+  </div>
+
+  <!-- Customer View -->
+  <div id="customer-view" class="page active">
+    <header>
+      <div class="container">
+        <h1>Hotel Restaurant Ordering System</h1>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="table-selector">
+        <h2>Select Your Table</h2>
+        <select id="table-select">
+          <option value="">-- Select Table --</option>
+          <option value="1">Table 1</option>
+          <option value="2">Table 2</option>
+          <option value="3">Table 3</option>
+          <option value="4">Table 4</option>
+          <option value="5">Table 5</option>
+          <option value="6">Table 6</option>
+          <option value="7">Table 7</option>
+          <option value="8">Table 8</option>
+        </select>
+      </div>
+
+      <h2>Our Menu</h2>
+      <div class="menu-items">
+        <!-- Appetizers -->
+        <div class="menu-item">
+          <h3>Bruschetta</h3>
+          <div class="price">$8.99</div>
+          <div class="description">Toasted bread topped with tomatoes, garlic, and fresh basil.</div>
+          <button onclick="addToOrder('Bruschetta', 8.99)">Add to Order</button>
+        </div>
+
+        <div class="menu-item">
+          <h3>Caesar Salad</h3>
+          <div class="price">$10.99</div>
+          <div class="description">Romaine lettuce, croutons, parmesan cheese with Caesar dressing.</div>
+          <button onclick="addToOrder('Caesar Salad', 10.99)">Add to Order</button>
+        </div>
+
+        <!-- Main Courses -->
+        <div class="menu-item">
+          <h3>Grilled Salmon</h3>
+          <div class="price">$22.99</div>
+          <div class="description">Fresh salmon fillet grilled to perfection with lemon butter sauce.</div>
+          <button onclick="addToOrder('Grilled Salmon', 22.99)">Add to Order</button>
+        </div>
+
+        <div class="menu-item">
+          <h3>Filet Mignon</h3>
+          <div class="price">$29.99</div>
+          <div class="description">8oz tender beef filet with roasted vegetables and mashed potatoes.</div>
+          <button onclick="addToOrder('Filet Mignon', 29.99)">Add to Order</button>
+        </div>
+
+        <div class="menu-item">
+          <h3>Chicken Parmesan</h3>
+          <div class="price">$18.99</div>
+          <div class="description">Breaded chicken breast topped with marinara and mozzarella cheese.</div>
+          <button onclick="addToOrder('Chicken Parmesan', 18.99)">Add to Order</button>
+        </div>
+
+        <!-- Desserts -->
+        <div class="menu-item">
+          <h3>Chocolate Lava Cake</h3>
+          <div class="price">$7.99</div>
+          <div class="description">Warm chocolate cake with a molten center, served with vanilla ice cream.</div>
+          <button onclick="addToOrder('Chocolate Lava Cake', 7.99)">Add to Order</button>
+        </div>
+
+        <div class="menu-item">
+          <h3>Tiramisu</h3>
+          <div class="price">$6.99</div>
+          <div class="description">Classic Italian dessert with layers of coffee-soaked ladyfingers and mascarpone
+            cream.</div>
+          <button onclick="addToOrder('Tiramisu', 6.99)">Add to Order</button>
+        </div>
+
+        <!-- Drinks -->
+        <div class="menu-item">
+          <h3>Sparkling Water</h3>
+          <div class="price">$3.50</div>
+          <div class="description">Premium imported sparkling water.</div>
+          <button onclick="addToOrder('Sparkling Water', 3.50)">Add to Order</button>
+        </div>
+
+        <div class="menu-item">
+          <h3>Fresh Lemonade</h3>
+          <div class="price">$4.50</div>
+          <div class="description">Homemade lemonade with fresh lemons and mint.</div>
+          <button onclick="addToOrder('Fresh Lemonade', 4.50)">Add to Order</button>
+        </div>
+      </div>
+
+      <div class="order-summary">
+        <h2>Your Order</h2>
+        <div id="order-items" class="order-items">
+          <p>No items added yet.</p>
+        </div>
+        <div id="order-total" class="total">Total: $0.00</div>
+        <button id="submit-order" class="submit-order" onclick="submitOrder()">Submit Order</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io('http://localhost:3000'); // Change to your server URL
+
+    // Join as customer
+    socket.emit('join', `customer_${document.getElementById('table-select').value}`);
+
+    // Shared data between views
+    let currentOrder = {
+      tableId: '',
+      items: [],
+      total: 0
+    };
+
+    let allOrders = JSON.parse(localStorage.getItem('hotelOrders')) || [];
+
+    // Switch between customer and kitchen views
+    function switchView(view) {
+      document.getElementById('customer-view').classList.remove('active');
+      document.getElementById('kitchen-view').classList.remove('active');
+      document.getElementById('customer-view-btn').classList.remove('active');
+      document.getElementById('kitchen-view-btn').classList.remove('active');
+
+      if (view === 'customer') {
+        document.getElementById('customer-view').classList.add('active');
+        document.getElementById('customer-view-btn').classList.add('active');
+      } else {
+        document.getElementById('kitchen-view').classList.add('active');
+        document.getElementById('kitchen-view-btn').classList.add('active');
+        loadKitchenOrders();
+      }
+    }
+
+    // Add item to order (Customer View)
+    function addToOrder(itemName, itemPrice) {
+      const tableSelect = document.getElementById('table-select');
+      if (!tableSelect.value) {
+        alert('Please select a table first');
+        return;
+      }
+
+      currentOrder.tableId = tableSelect.value;
+
+      // Check if item already exists in order
+      const existingItem = currentOrder.items.find(item => item.name === itemName);
+      if (existingItem) {
+        existingItem.quantity += 1;
+        existingItem.total = existingItem.quantity * existingItem.price;
+      } else {
+        currentOrder.items.push({
+          name: itemName,
+          price: itemPrice,
+          quantity: 1,
+          total: itemPrice
+        });
+      }
+
+      updateOrderDisplay();
+    }
+
+    // Update the order display (Customer View)
+    function updateOrderDisplay() {
+      const orderItemsEl = document.getElementById('order-items');
+      const orderTotalEl = document.getElementById('order-total');
+
+      if (currentOrder.items.length === 0) {
+        orderItemsEl.innerHTML = '<p>No items added yet.</p>';
+        orderTotalEl.textContent = 'Total: $0.00';
+        currentOrder.total = 0;
+        return;
+      }
+
+      let itemsHtml = '';
+      let total = 0;
+
+      currentOrder.items.forEach(item => {
+        itemsHtml += `
+                    <div class="order-item">
+                        <span>${item.name} (x${item.quantity})</span>
+                        <span>$${item.total.toFixed(2)}</span>
+                    </div>
+                `;
+        total += item.total;
+      });
+
+      orderItemsEl.innerHTML = itemsHtml;
+      orderTotalEl.textContent = `Total: $${total.toFixed(2)}`;
+      currentOrder.total = total;
+    }
+
+    // Submit order to kitchen (Customer View)
+    function submitOrder() {
+      socket.emit('new_order', {
+        tableId: currentOrder.tableId,
+        items: currentOrder.items,
+        total: currentOrder.total
+      });
+      if (!currentOrder.tableId) {
+        alert('Please select a table');
+        return;
+      }
+
+      if (currentOrder.items.length === 0) {
+        alert('Please add items to your order');
+        return;
+      }
+
+      // Create a new order with timestamp and status
+      const newOrder = {
+        ...currentOrder,
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        status: 'new' // 'new', 'preparing', 'ready'
+      };
+
+      // Add to all orders
+      allOrders.push(newOrder);
+      localStorage.setItem('hotelOrders', JSON.stringify(allOrders));
+
+      // Reset the current order
+      currentOrder = {
+        tableId: document.getElementById('table-select').value,
+        items: [],
+        total: 0
+      };
+
+      updateOrderDisplay();
+
+      alert('Your order has been sent to the kitchen!');
+
+      // If kitchen view is open, refresh it
+      if (document.getElementById('kitchen-view').classList.contains('active')) {
+        loadKitchenOrders();
+      }
+    }
+
+    // Load orders for kitchen view
+    function loadKitchenOrders() {
+      const ordersContainer = document.getElementById('kitchen-orders-container');
+      allOrders = JSON.parse(localStorage.getItem('hotelOrders')) || [];
+
+      if (allOrders.length === 0) {
+        ordersContainer.innerHTML = `
+                    <div class="no-orders">
+                        <p>No orders received yet.</p>
+                    </div>
+                `;
+        return;
+      }
+
+      let ordersHtml = '';
+
+      // Sort orders by timestamp (newest first)
+      allOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      allOrders.forEach(order => {
+        let itemsHtml = '';
+        let total = 0;
+
+        order.items.forEach(item => {
+          itemsHtml += `
+                        <div class="order-item">
+                            <span>${item.name} (x${item.quantity})</span>
+                            <span>$${item.total.toFixed(2)}</span>
+                        </div>
+                    `;
+          total += item.total;
+        });
+
+        const orderTime = new Date(order.timestamp).toLocaleTimeString();
+        const statusClass = `status-${order.status || 'new'}`;
+
+        ordersHtml += `
+                    <div class="order-card">
+                        <h3>Table ${order.tableId} <span class="order-status ${statusClass}">${order.status || 'new'}</span></h3>
+                        <div class="order-time">Received: ${orderTime}</div>
+                        <div class="order-items">
+                            ${itemsHtml}
+                        </div>
+                        <div class="order-total">Total: $${total.toFixed(2)}</div>
+                        <div class="order-actions">
+                            <button class="mark-preparing" onclick="updateOrderStatus(${order.id}, 'preparing')">Preparing</button>
+                            <button class="mark-ready" onclick="updateOrderStatus(${order.id}, 'ready')">Ready</button>
+                        </div>
+                    </div>
+                `;
+      });
+
+      ordersContainer.innerHTML = ordersHtml;
+    }
+
+    // Update order status (Kitchen View)
+    function updateOrderStatus(orderId, status) {
+      const orderIndex = allOrders.findIndex(order => order.id === orderId);
+
+      if (orderIndex !== -1) {
+        allOrders[orderIndex].status = status;
+        localStorage.setItem('hotelOrders', JSON.stringify(allOrders));
+        loadKitchenOrders();
+      }
+    }
+
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', function () {
+      // Load any existing orders
+      allOrders = JSON.parse(localStorage.getItem('hotelOrders')) || [];
+
+      // Set up periodic refresh for kitchen view (every 10 seconds)
+      setInterval(function () {
+        if (document.getElementById('kitchen-view').classList.contains('active')) {
+          loadKitchenOrders();
+        }
+      }, 10000);
+    });
+
+    // Listen for status updates
+    socket.on('status_update', (data) => {
+      alert(`Order ${data.orderId} is now ${data.status}`);
+    });
+
+
+  </script>
+</body>
+
+</html>
